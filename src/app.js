@@ -103,6 +103,10 @@ app.get('/health', (req, res) => {
   res.json({ success: true, timestamp: new Date().toISOString() });
 });
 
+app.get('/api/health', (req, res) => {
+  res.json({ success: true, timestamp: new Date().toISOString(), service: 'Shule AI Backend' });
+});
+
 // ============ MOUNT ROUTES ============
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);

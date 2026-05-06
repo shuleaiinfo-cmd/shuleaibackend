@@ -73,29 +73,38 @@ io.on('connection', (socket) => {
     });
 });
 
-// Test database connection and sync models
-sequelize.authenticate()
-  .then(() => {
+// Test database connection, create missing core tables on clean databases, then run safe schema upgrades.
+// IMPORTANT:
+// - sequelize.sync({ alter: false }) only creates missing tables. It does NOT rewrite existing tables.
+// - This is required for a brand-new Render Postgres database, otherwise core tables like "Users" do not exist.
+// - Set DISABLE_DB_SYNC=true only if you are managing schema manually with migrations.
+async function startServer() {
+  try {
+    await sequelize.authenticate();
     console.log('✅ Database connection test SUCCESSFUL');
-    return ensureRuntimeSchema();
-  })
-  .then(() => {
-    if (process.env.NODE_ENV === 'development') {
-      return sequelize.sync({ alter: true });
+
+    const disableDbSync = process.env.DISABLE_DB_SYNC === 'true';
+
+    if (!disableDbSync) {
+      console.log('🧱 Ensuring core database tables exist...');
+      await sequelize.sync({ alter: false });
+      console.log('✅ Core database tables ready');
+    } else {
+      console.log('ℹ️ DISABLE_DB_SYNC=true, skipping automatic table creation');
     }
-  })
-  .then(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('✅ Database models synchronized');
-    }
+
+    await ensureRuntimeSchema();
+
     server.listen(PORT, () => {
       console.log(`✅ Server running on port ${PORT}`);
     });
-  })
-  .catch(err => {
+  } catch (err) {
     console.error('❌ Database or sync error:', err);
     process.exit(1);
-  });
+  }
+}
+
+startServer();
 
 process.on('unhandledRejection', (reason, promise) => {
     console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
